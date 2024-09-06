@@ -1,0 +1,9 @@
+{
+    "salaoId": "66d9dfbb0830e86a91f9a635",
+    "titulo": "Serviço Teste",
+    "preco": 20,
+    "comissao": 10,
+    "duracao": 30,
+    "recorrencia": 30, 
+    "descricao": "Descrição do serviço"
+}
