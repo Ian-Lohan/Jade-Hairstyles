@@ -1,8 +1,8 @@
 const AWS = require('aws-sdk');
 
 module.exports = {
-  IAM_USER_KEY: 'AKIASK5MCQR74UP2ZLEZ', 
-  IAM_USER_SECRET: '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',
+  IAM_USER_KEY: '', //AKIASK5MCQR74UP2ZLEZ
+  IAM_USER_SECRET: '', //qK+ForkFdsroKOgapRs//wCB3WtHrA/rC3GpXyPy
   BUCKET_NAME: 'jade-yasmin-hairstyles-studio',
   AWS_REGION: 'us-east-2',
   uploadToS3: function (file, filename, acl = 'public-read') {
