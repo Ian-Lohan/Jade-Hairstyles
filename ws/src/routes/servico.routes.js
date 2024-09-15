@@ -1,77 +1,124 @@
 const express = require('express');
 const router = express.Router();
-const Busboy = require('busboy');
-const aws = require('../services/aws');
-const Arquivo = require('../models/arquivo');
+const multer = require('multer');
+const AWSService = require('../services/aws');
 const Servico = require('../models/servico');
+const Arquivos = require('../models/arquivos');
 
-// ROTA RECEBE FORMDATA
-router.post('/', async (req, res) => {
-    let busboy = new Busboy({ headers: req.headers });
-    busboy.on('finish', async () => {
-        try {
-            const { salaoId, servico } = req.body;
-            let errors = [];
-            let arquivos = [];
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
 
-            /*
-            {
-                "123123123": {...},
-                "123123123": {...},
-                "123123123": {...}
-            }
-            */
+// ADD
+router.post('/', upload.single('file'), async (req, res) => {
+    try {
+        const { file } = req;
+        const servicoData = req.body;
 
-            console.log(req.files);
+        // Save the servico data to the database
+        const servico = await new Servico(servicoData).save();
 
-            /*
-            if (req.files && Object.keys(req.files) > 0) {
-                for (let key of Object.keys(req.files)) {
-                    const file = req.files[key];
+        // Upload the file to S3
+        if (file) {
+            const filename = `servicos/${servico._id}/${file.originalname}`;
+            const uploadResult = await AWSService.uploadToS3(file, filename);
 
-                    // 123123123.jpg
-                    const nameParts = file.name.slkit('.'); //[123123123, jpg]
-                    const fileName = `${new Date().getTime()}.${
-                        nameParts[nameParts.length - 1]
-                    }`;
-                    const path = `servicos/${salaoId}/${fileName}`;
-                    
-                    const response = await aws.uploadToS3(file, path);
-
-                    if (response.error) {
-                        errors.push({ error: true, message: response.message.message });
-                    } else {
-                        arquivos.push(path);
-                    }
-                }
-            }
-            */
-
-            if (errors.length > 0) {
-                res.json(errors[0]);
-                return false;
+            if (uploadResult.error) {
+                return res.json({ error: true, message: uploadResult.message });
             }
 
-            // CRIAR SERVIÇO
-            let jsonServico = JSON.parse(servico);
-            const servicoCadastrado = await Servico(jsonServico).save();
-
-            // CRIAR ARQUIVO
-            arquivos = arquivos.map((arquivo) => ({
-                referenciaId: servicoCadastrado._id,
+            // Create Arquivos document
+            const arquivo = new Arquivos({
+                referenciaId: servico._id,
                 model: 'Servico',
-                caminho: arquivo,
-            }));
-
-            await Arquivo.insertMany(arquivos);
-
-            res.json({ servico: servicoCadastrado, arquivos });
-
-        } catch (err) {
-            res.json({ error: true, message: err.message });
+                arquivo: filename,
+            });
+            await arquivo.save();
         }
-    });
-    req.pipe(busboy);
+
+        res.json({ servico });
+    } catch (err) {
+        res.json({ error: true, message: err.message });
+    }
+});
+
+// UPDATE
+router.put('/:id', upload.single('file'), async (req, res) => {
+    try {
+        const { file } = req;
+        const servicoData = req.body;
+
+        // Save the servico data to the database
+        const servico = await Servico.findByIdAndUpdate(req.params.id, servicoData, { new: true });
+
+        // Upload the file to S3
+        if (file) {
+            const filename = `servicos/${servico._id}/${file.originalname}`;
+            const uploadResult = await AWSService.uploadToS3(file, filename);
+
+            if (uploadResult.error) {
+                return res.json({ error: true, message: uploadResult.message });
+            }
+        }
+
+        res.json({ servico });
+    } catch (err) {
+        res.json({ error: true, message: err.message });
+    }
+});
+
+// GET SALAO
+router.get('/salao/:salaoId', async (req, res) => {
+    try {
+        let servicosSalao = [];
+
+        const servicos = await Servico.find({
+            salaoId: req.params.salaoId,
+            status: { $ne: 'E' },
+        });
+
+        for (let servico of servicos) {
+            const arquivos = await Arquivos.find({
+                model: 'Servico',
+                referenciaId: servico._id,
+            });
+            servicosSalao.push({ ...servico._doc, arquivos });
+        }
+
+        res.json({ servicos: servicosSalao });
+    } catch (err) {
+        res.json({ error: true, message: err.message });
+    }
+});
+
+// DELETE FROM AWS AND DATABASE
+router.post('/remove-arquivo', async (req, res) => {
+    try {
+        const { arquivo } = req.body;
+
+        // EXCLUIR DA AWS
+        const deleteResult = await AWSService.deleteFileS3(arquivo);
+        if (deleteResult.error) {
+            return res.json({ error: true, message: deleteResult.message });
+        }
+
+        // EXCLUIR DO BANCO DE DADOS
+        await Arquivos.findOneAndDelete({ arquivo });
+
+        res.json({ error: false, message: 'Arquivo excluído com sucesso!' });
+    } catch (err) {
+        res.json({ error: true, message: err.message });
+    }
+});
+
+// DELETE (soft delete)
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const servico = await Servico.findByIdAndUpdate(id, { status: 'E' });
+        res.json({ servico });
+    } catch (err) {
+        res.json({ error: true, message: err.message });
+    }
 });
 
 module.exports = router;

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
-const arquivo = new Schema({
+const arquivos = new Schema({
 
     referenciaId: {
         type: Schema.Types.ObjectId,
@@ -12,7 +12,7 @@ const arquivo = new Schema({
         required: true,
         enum: ['Servico', 'Salao'],
     },
-    caminho: {
+    arquivo: {
         type: String,
         required: true,
     },
@@ -23,4 +23,4 @@ const arquivo = new Schema({
 
 });
 
-module.exports = mongoose.model('Arquivo', arquivo);
+module.exports = mongoose.model('Arquivos', arquivos);
