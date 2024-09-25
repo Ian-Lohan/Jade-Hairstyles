@@ -17,11 +17,11 @@ const cliente = new Schema({
     },
     senha: {
         type: String,
-        required: true,
+        default: null,
     },
     foto: {
         type: String,
-        required: true,
+        default: null,
     },
     status: {
         type: String,
@@ -41,7 +41,7 @@ const cliente = new Schema({
     documento: {
         tipo: {
             type: String,
-            enum: ['individual', 'corporation'],
+            enum: ['cpf', 'cnpj'],
             required: true,
         },
         numero: {

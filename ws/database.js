@@ -1,8 +1,9 @@
 const mongoose = require('mongoose');
+require('dotenv').config();
 
-const URI = 'mongodb+srv://salaoUser:senhaUser@clusterdev.yebgb.mongodb.net/jade-hairstyles?retryWrites=true&w=majority&appName=ClusterDev';
+const URI = process.env.MONGO_URI;
 
 mongoose
     .connect(URI)
     .then(() => console.log('DB is Up!'))
-    .catch(() => console.log(err));
+    .catch((err) => console.log('DB connection error:', err));
